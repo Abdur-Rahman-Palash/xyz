@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import toast from 'react-hot-toast'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { FileText, Calendar, Tag, Filter } from 'lucide-react'
+import { FileText, Plus, Edit, Trash2, Eye, ArrowLeft, Filter, Calendar } from 'lucide-react'
 
 interface Notice {
   _id: string
@@ -29,19 +31,40 @@ export default function NoticesPage() {
 
   useEffect(() => {
     fetchNotices()
-  }, [filter])
+  }, [filter.category, filter.priority])
+
+  useEffect(() => {
+    // Listen for localStorage changes
+    const handleStorageChange = () => {
+      const storedNotices = JSON.parse(localStorage.getItem('notices') || '[]')
+      setNotices(storedNotices)
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
 
   const fetchNotices = async () => {
     try {
-      const params = new URLSearchParams()
-      if (filter.category) params.append('category', filter.category)
-      if (filter.priority) params.append('priority', filter.priority)
-      
-      const response = await fetch(`/api/notices?${params}`)
+      // First try to get from localStorage
+      const storedNotices = JSON.parse(localStorage.getItem('notices') || '[]')
+      if (storedNotices.length > 0) {
+        setNotices(storedNotices)
+        setLoading(false)
+        return
+      }
+
+      // Fallback to API if no localStorage data
+      const response = await fetch('/api/notices')
       const data = await response.json()
-      setNotices(data.notices || [])
+      
+      if (response.ok) {
+        setNotices(data.notices || [])
+      } else {
+        toast.error('Failed to fetch notices')
+      }
     } catch (error) {
-      console.error('Error fetching notices:', error)
+      toast.error('An error occurred. Please try again.')
     } finally {
       setLoading(false)
     }

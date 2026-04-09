@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import toast from 'react-hot-toast'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Calendar, MapPin, Users, Tag, Filter } from 'lucide-react'
@@ -34,19 +36,44 @@ export default function EventsPage() {
 
   useEffect(() => {
     fetchEvents()
-  }, [filter])
+  }, [filter.type, filter.status])
+
+  useEffect(() => {
+    // Listen for localStorage changes
+    const handleStorageChange = () => {
+      const storedEvents = JSON.parse(localStorage.getItem('events') || '[]')
+      setEvents(storedEvents)
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
 
   const fetchEvents = async () => {
     try {
+      // First try to get from localStorage
+      const storedEvents = JSON.parse(localStorage.getItem('events') || '[]')
+      if (storedEvents.length > 0) {
+        setEvents(storedEvents)
+        setLoading(false)
+        return
+      }
+
+      // Fallback to API if no localStorage data
       const params = new URLSearchParams()
       if (filter.type) params.append('type', filter.type)
       if (filter.status) params.append('status', filter.status)
       
       const response = await fetch(`/api/events?${params}`)
       const data = await response.json()
-      setEvents(data.events || [])
+      
+      if (response.ok) {
+        setEvents(data.events || [])
+      } else {
+        toast.error('Failed to fetch events')
+      }
     } catch (error) {
-      console.error('Error fetching events:', error)
+      toast.error('An error occurred. Please try again.')
     } finally {
       setLoading(false)
     }

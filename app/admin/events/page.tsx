@@ -35,11 +35,36 @@ export default function AdminEventsPage() {
     fetchEvents()
   }, [])
 
+  useEffect(() => {
+    // Listen for localStorage changes
+    const handleStorageChange = () => {
+      const storedEvents = JSON.parse(localStorage.getItem('events') || '[]')
+      setEvents(storedEvents)
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
+
   const fetchEvents = async () => {
     try {
+      // First try to get from localStorage
+      const storedEvents = JSON.parse(localStorage.getItem('events') || '[]')
+      if (storedEvents.length > 0) {
+        setEvents(storedEvents)
+        setLoading(false)
+        return
+      }
+
+      // Fallback to API if no localStorage data
       const response = await fetch('/api/events')
       const data = await response.json()
       setEvents(data.events || [])
+      
+      // Store API data in localStorage for main website
+      if (data.events && data.events.length > 0) {
+        localStorage.setItem('events', JSON.stringify(data.events))
+      }
     } catch (error) {
       toast.error('Failed to fetch events')
     } finally {
@@ -59,12 +84,21 @@ export default function AdminEventsPage() {
 
       if (response.ok) {
         toast.success('Event deleted successfully')
+        
+        // Remove from localStorage
+        const storedEvents = JSON.parse(localStorage.getItem('events') || '[]')
+        const updatedEvents = storedEvents.filter((event: any) => event._id !== id)
+        localStorage.setItem('events', JSON.stringify(updatedEvents))
+        
+        // Trigger storage event for main website
+        localStorage.setItem('dashboard-refresh', Date.now().toString())
+        
         fetchEvents()
       } else {
         toast.error('Failed to delete event')
       }
     } catch (error) {
-      toast.error('An error occurred')
+      toast.error('An error occurred. Please try again.')
     }
   }
 

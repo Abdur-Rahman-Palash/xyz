@@ -50,7 +50,16 @@ export default function NewEventPage() {
 
       if (response.ok) {
         toast.success('Event created successfully!')
-        router.push('/admin/events')
+        
+        // Store new event in localStorage for immediate display
+        const existingEvents = JSON.parse(localStorage.getItem('events') || '[]')
+        existingEvents.unshift(data)
+        localStorage.setItem('events', JSON.stringify(existingEvents))
+        
+        // Trigger dashboard update via storage event
+        localStorage.setItem('dashboard-refresh', Date.now().toString())
+        
+        router.push('/admin/dashboard?refresh=true')
       } else {
         toast.error(data.error || 'Failed to create event')
       }

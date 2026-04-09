@@ -31,11 +31,36 @@ export default function AdminNoticesPage() {
     fetchNotices()
   }, [])
 
+  useEffect(() => {
+    // Listen for localStorage changes
+    const handleStorageChange = () => {
+      const storedNotices = JSON.parse(localStorage.getItem('notices') || '[]')
+      setNotices(storedNotices)
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
+
   const fetchNotices = async () => {
     try {
+      // First try to get from localStorage
+      const storedNotices = JSON.parse(localStorage.getItem('notices') || '[]')
+      if (storedNotices.length > 0) {
+        setNotices(storedNotices)
+        setLoading(false)
+        return
+      }
+
+      // Fallback to API if no localStorage data
       const response = await fetch('/api/notices')
       const data = await response.json()
       setNotices(data.notices || [])
+      
+      // Store API data in localStorage for main website
+      if (data.notices && data.notices.length > 0) {
+        localStorage.setItem('notices', JSON.stringify(data.notices))
+      }
     } catch (error) {
       toast.error('Failed to fetch notices')
     } finally {
@@ -55,12 +80,21 @@ export default function AdminNoticesPage() {
 
       if (response.ok) {
         toast.success('Notice deleted successfully')
+        
+        // Remove from localStorage
+        const storedNotices = JSON.parse(localStorage.getItem('notices') || '[]')
+        const updatedNotices = storedNotices.filter((notice: any) => notice._id !== id)
+        localStorage.setItem('notices', JSON.stringify(updatedNotices))
+        
+        // Trigger storage event for main website
+        localStorage.setItem('dashboard-refresh', Date.now().toString())
+        
         fetchNotices()
       } else {
         toast.error('Failed to delete notice')
       }
     } catch (error) {
-      toast.error('An error occurred')
+      toast.error('An error occurred. Please try again.')
     }
   }
 

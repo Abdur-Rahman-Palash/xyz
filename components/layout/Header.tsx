@@ -1,8 +1,9 @@
 'use client'
 
-import Link from 'next/link'
-import { FileText, Calendar, Shield, Menu, X } from 'lucide-react'
 import { useState } from 'react'
+import Link from 'next/link'
+import { Menu, X, Home, FileText, Calendar, User, Shield } from 'lucide-react'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -41,13 +42,13 @@ export default function Header() {
               <Calendar className="w-4 h-4" />
               Events
             </Link>
-            <Link 
-              href="/admin/login" 
-              className="text-gray-700 hover:text-blue-600 transition-colors font-medium flex items-center gap-1"
-            >
-              <Shield className="w-4 h-4" />
-              Admin
-            </Link>
+            <div className="flex items-center space-x-4">
+              <ThemeToggle />
+              <Link href="/admin/login" className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
+                <User className="w-4 h-4" />
+                Admin
+              </Link>
+            </div>
           </nav>
 
           {/* Mobile Menu Button */}

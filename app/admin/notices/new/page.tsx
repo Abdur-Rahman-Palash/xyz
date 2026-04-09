@@ -38,7 +38,16 @@ export default function NewNoticePage() {
 
       if (response.ok) {
         toast.success('Notice created successfully!')
-        router.push('/admin/notices')
+        
+        // Store new notice in localStorage for immediate display
+        const existingNotices = JSON.parse(localStorage.getItem('notices') || '[]')
+        existingNotices.unshift(data)
+        localStorage.setItem('notices', JSON.stringify(existingNotices))
+        
+        // Trigger dashboard update via storage event
+        localStorage.setItem('dashboard-refresh', Date.now().toString())
+        
+        router.push('/admin/dashboard?refresh=true')
       } else {
         toast.error(data.error || 'Failed to create notice')
       }

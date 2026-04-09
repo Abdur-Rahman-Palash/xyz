@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -23,7 +23,7 @@ interface DashboardStats {
   recentNotices: number
 }
 
-export default function AdminDashboard() {
+function AdminDashboardContent() {
   const [stats, setStats] = useState<DashboardStats>({
     totalNotices: 0,
     totalEvents: 0,
@@ -31,14 +31,101 @@ export default function AdminDashboard() {
     recentNotices: 0
   })
   const [loading, setLoading] = useState(true)
+  const [currentTime, setCurrentTime] = useState(new Date())
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     fetchStats()
+    
+    // Check for refresh parameter and clear it
+    if (searchParams.get('refresh') === 'true') {
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+    }
+    
+    // Update time every second
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+
+    return () => clearInterval(timeInterval)
+  }, [])
+
+  useEffect(() => {
+    // Refresh stats every 10 seconds for more responsive real-time updates
+    const statsInterval = setInterval(() => {
+      fetchStats()
+    }, 10000)
+
+    return () => clearInterval(statsInterval)
+  }, [])
+
+  // Listen for storage events to detect when new items are created
+  useEffect(() => {
+    const handleStorageChange = (e: any) => {
+      console.log('Storage changed:', e)
+      fetchStats() // Immediate update when storage changes
+    }
+
+    // Listen for custom storage event
+    window.addEventListener('storage', handleStorageChange)
+    
+    // Also listen for visibility changes (user returns to tab)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        fetchStats() // Update when page becomes visible
+      }
+    })
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      document.removeEventListener('visibilitychange', handleStorageChange)
+    }
+  }, [])
+
+  // Also check for storage changes on mount
+  useEffect(() => {
+    const checkInitialStorage = () => {
+      const lastRefresh = localStorage.getItem('dashboard-refresh')
+      if (lastRefresh) {
+        console.log('Initial storage check - found refresh trigger')
+        fetchStats()
+        localStorage.removeItem('dashboard-refresh')
+      }
+    }
+
+    checkInitialStorage()
   }, [])
 
   const fetchStats = async () => {
     try {
+      // First try to get from localStorage for consistency with main website
+      const storedNotices = JSON.parse(localStorage.getItem('notices') || '[]')
+      const storedEvents = JSON.parse(localStorage.getItem('events') || '[]')
+      
+      if (storedNotices.length > 0 || storedEvents.length > 0) {
+        const upcomingEvents = storedEvents.filter((event: any) => 
+          event.status === 'upcoming'
+        ).length || 0
+
+        const recentNotices = storedNotices.filter((notice: any) => {
+          const noticeDate = new Date(notice.publishedAt)
+          const today = new Date()
+          return noticeDate.toDateString() === today.toDateString()
+        }).length || 0
+
+        setStats({
+          totalNotices: storedNotices.length,
+          totalEvents: storedEvents.length,
+          upcomingEvents,
+          recentNotices
+        })
+        setLoading(false)
+        return
+      }
+
+      // Fallback to API if no localStorage data
       const [noticesRes, eventsRes] = await Promise.all([
         fetch('/api/notices'),
         fetch('/api/events')
@@ -53,9 +140,8 @@ export default function AdminDashboard() {
 
       const recentNotices = noticesData.notices?.filter((notice: any) => {
         const noticeDate = new Date(notice.publishedAt)
-        const weekAgo = new Date()
-        weekAgo.setDate(weekAgo.getDate() - 7)
-        return noticeDate > weekAgo
+        const today = new Date()
+        return noticeDate.toDateString() === today.toDateString()
       }).length || 0
 
       setStats({
@@ -64,6 +150,14 @@ export default function AdminDashboard() {
         upcomingEvents,
         recentNotices
       })
+
+      // Store API data in localStorage for consistency
+      if (noticesData.notices && noticesData.notices.length > 0) {
+        localStorage.setItem('notices', JSON.stringify(noticesData.notices))
+      }
+      if (eventsData.events && eventsData.events.length > 0) {
+        localStorage.setItem('events', JSON.stringify(eventsData.events))
+      }
     } catch (error) {
       toast.error('Failed to load dashboard stats')
     } finally {
@@ -89,12 +183,12 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
             </div>
             <div className="flex items-center space-x-4">
               <Button 
@@ -111,6 +205,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -120,7 +215,7 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalNotices}</div>
               <p className="text-xs text-muted-foreground">
-                {stats.recentNotices} added this week
+                {stats.recentNotices} added today
               </p>
             </CardContent>
           </Card>
@@ -133,7 +228,7 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalEvents}</div>
               <p className="text-xs text-muted-foreground">
-                {stats.upcomingEvents} upcoming
+                {stats.upcomingEvents} today
               </p>
             </CardContent>
           </Card>
@@ -159,7 +254,7 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{stats.recentNotices}</div>
               <p className="text-xs text-muted-foreground">
-                Notices this week
+                Notices today
               </p>
             </CardContent>
           </Card>
@@ -188,7 +283,6 @@ export default function AdminDashboard() {
                 </Button>
                 <Button 
                   onClick={() => router.push('/admin/events/new')}
-                  variant="outline"
                   className="flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
@@ -252,5 +346,13 @@ export default function AdminDashboard() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AdminDashboard() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading dashboard...</div>}>
+      <AdminDashboardContent />
+    </Suspense>
   )
 }

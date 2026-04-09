@@ -93,11 +93,11 @@ export default function Footer() {
               </div>
               <div className="flex items-center gap-3 text-gray-300">
                 <Phone className="w-4 h-4 flex-shrink-0" />
-                <span className="text-sm">+1 (555) 123-4567</span>
+                <span className="text-sm">+1 000 000 0000</span>
               </div>
               <div className="flex items-center gap-3 text-gray-300">
                 <MapPin className="w-4 h-4 flex-shrink-0" />
-                <span className="text-sm">123 Organization St<br />City, State 12345</span>
+                <span className="text-sm">123 XYZ<br />City, State 12345</span>
               </div>
             </div>
           </div>

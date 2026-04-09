@@ -1,14 +1,16 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
+import type { Metadata } from 'next'
 import { Toaster } from 'react-hot-toast'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 
 const inter = Inter({ subsets: ['latin'] })
 
-export const metadata = {
-  title: 'XYZ - Notice & Event Management',
-  description: 'A dynamic notice and event management system',
+export const metadata: Metadata = {
+  title: 'XYZ Notice & Event Management',
+  description: 'Comprehensive notice and event management system',
 }
 
 export default function RootLayout({
@@ -19,14 +21,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="min-h-screen flex flex-col">
-          <Header />
-          <main className="flex-1">
-            {children}
-          </main>
-          <Footer />
-        </div>
-        <Toaster position="top-right" />
+        <ThemeProvider>
+          <div className="min-h-screen flex flex-col">
+            <Header />
+            <main className="flex-1">
+              {children}
+            </main>
+            <Footer />
+          </div>
+          <Toaster position="top-right" />
+        </ThemeProvider>
       </body>
     </html>
   )
